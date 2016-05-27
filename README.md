@@ -23,11 +23,24 @@ The MIT License (MIT) Copyright (c) 2015 Bunny Blue,achellies<br>
 [BunnyBlue](https://github.com/bunnyblue)<br>
 
 ## plugin start
-download aapt from repo,and  you should use build-tool version 22.x.x,
+download aapt from repo,and  you should use build-tool version 23.x.x,
 write your plugin as normal app, ant build  with  hacked aapt.
 ### plugin resource notice
-you can define your package id at Manifest by "versionName",such as versionName:"1.0.1" ,but as a plugin should be versionName:"1.0.10x7a",you will get apk which versionName is "1.0.0" but package id is 0x7a not 0x7f.you can use 0x2 to 0x7,
-also you can define package change packageName "com.myapp.pkgname" to " com.myapp.pkgname0x7a".
+```groovy
+
+android {//you need use buildToolsVersion 23.x gradle plugin 1.3.+
+    compileSdkVersion 23
+    buildToolsVersion "23.0.2"
+
+    productFlavors {
+        acdd {
+            aaptOptions.additionalParameters '--ACDD-resoure-id', '0x5e', '--ACDD-shared-resources', rootProject.file("public.xml").getAbsolutePath()
+        }
+        normal {
+        }
+    }
+}
+```
 
 ##Sample & Art
 <a href="https://github.com/bunnyblue/ACDDExtension/blob/master/Dist/ACDDLauncher.apk">
@@ -41,3 +54,14 @@ also you can define package change packageName "com.myapp.pkgname" to " com.myap
 The MIT License (MIT) Copyright (c) 2015 Bunny Blue,achellies
 
 # [Feature @ Wiki](https://github.com/bunnyblue/ACDD/wiki#feature)
+
+# Android Support
+
+| Android version        | Status           | 
+| ------------- |:-------------:| 
+| Android N      | not full support(so crash) | 
+| Android 6.0      | tested | 
+| Android 5.0     | tested      |   
+| Android  4.0 | tested     |  
+| Android 3.x | unsupported|
+| Android 2.x | tested  |

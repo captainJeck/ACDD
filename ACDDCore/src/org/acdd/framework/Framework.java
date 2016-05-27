@@ -29,21 +29,18 @@ package org.acdd.framework;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Build.VERSION;
-import android.os.Process;
 
 import org.acdd.framework.bundlestorage.BundleArchive;
+import org.acdd.log.ACDDMonitor;
 import org.acdd.log.Logger;
 import org.acdd.log.LoggerFactory;
-import org.acdd.log.ACDDMonitor;
 import org.acdd.runtime.ClassNotFoundInterceptorCallback;
 import org.acdd.runtime.RuntimeVariables;
+
 import org.acdd.util.ACDDFileLock;
 import org.acdd.util.BundleLock;
 import org.acdd.util.FileUtils;
-import org.acdd.util.ACDDUtils;
 import org.acdd.util.StringUtils;
-
-import org.osgi.framework.AdminPermission;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleEvent;
 import org.osgi.framework.BundleException;
@@ -74,10 +71,8 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 
-//import org.osgi.framework.ServiceReference;
 
 public final class Framework {
-    private static final AdminPermission ADMIN_PERMISSION = new AdminPermission();
     private static String BASEDIR = null;
     private static String BUNDLE_LOCATION = null;
     static int CLASSLOADER_BUFFER_SIZE = 0;
@@ -85,7 +80,7 @@ public final class Framework {
     static boolean DEBUG_CLASSLOADING = true;
     static boolean DEBUG_PACKAGES = true;
     static boolean DEBUG_SERVICES = true;
-    static final String FRAMEWORK_VERSION = "1.0.0";
+    static final String FRAMEWORK_VERSION = org.acdd.sdk.BuildConfig.VERSION_NAME;
     private static final String DOWN_GRADE_FILE = "down_grade_list";
     static int LOG_LEVEL;
     static String STORAGE_LOCATION;
@@ -402,6 +397,7 @@ public final class Framework {
                         BundleLock.WriteUnLock(location);
                         if (mBundleArchiveFile != null) {
                             ACDDFileLock.getInstance().unLock(mBundleArchiveFile);
+                            return  bundleImpl;
                         }
                     }
                 }
@@ -421,7 +417,43 @@ public final class Framework {
 
         return bundleImpl;
     }
+    static BundleImpl preInstallNewBundle(String location, File apkFile) throws BundleException {
+        BundleImpl bundleImpl;
+        File mBundleArchiveFile = null;
+        try {
+            BundleLock.WriteLock(location);
+            bundleImpl = (BundleImpl) Framework.getBundle(location);
+            if (bundleImpl != null) {
+                BundleLock.WriteUnLock(location);
+            } else {
+                mBundleArchiveFile = new File(STORAGE_LOCATION, location);
 
+                ACDDFileLock.getInstance().LockExclusive(mBundleArchiveFile);
+                if (mBundleArchiveFile.exists()) {
+                    bundleImpl = restoreFromExistedBundle(location, mBundleArchiveFile);
+                    if (bundleImpl != null) {
+                        BundleLock.WriteUnLock(location);
+                        if (mBundleArchiveFile != null) {
+                            ACDDFileLock.getInstance().unLock(mBundleArchiveFile);
+                        }
+                    }
+                }
+                bundleImpl = new BundleImpl(mBundleArchiveFile, location, null, apkFile, false);
+                storeMetadata();
+                BundleLock.WriteUnLock(location);
+                if (mBundleArchiveFile != null) {
+                    ACDDFileLock.getInstance().unLock(mBundleArchiveFile);
+                }
+            }
+        } catch (Throwable e) {
+
+            e.printStackTrace();
+            BundleLock.WriteUnLock(location);
+            throw new BundleException(e.getMessage());
+        }
+
+        return bundleImpl;
+    }
     static boolean restoreBundle(String[] packageNames) {
 
         try {
@@ -473,6 +505,42 @@ public final class Framework {
         return bundleImpl;
     }
 
+    static BundleImpl preInstallNewBundle(String location, InputStream archiveInputStream) throws BundleException {
+        BundleImpl bundleImpl = null;
+        File mBundleArchiveFile = null;
+        try {
+            BundleLock.WriteLock(location);
+            bundleImpl = (BundleImpl) getBundle(location);
+            if (bundleImpl != null) {
+                BundleLock.WriteUnLock(location);
+
+            } else {
+                mBundleArchiveFile = new File(STORAGE_LOCATION, location);
+                ACDDFileLock.getInstance().LockExclusive(mBundleArchiveFile);
+                if (mBundleArchiveFile.exists()) {
+                    bundleImpl = restoreFromExistedBundle(location, mBundleArchiveFile);
+                    if (bundleImpl != null) {
+                        BundleLock.WriteUnLock(location);
+                        if (location != null) {
+                            ACDDFileLock.getInstance().unLock(mBundleArchiveFile);
+                        }
+                    }
+                }
+                bundleImpl = new BundleImpl(mBundleArchiveFile, location, archiveInputStream, null, false);
+                storeMetadata();
+                BundleLock.WriteUnLock(location);
+                if (mBundleArchiveFile != null) {
+                    ACDDFileLock.getInstance().unLock(mBundleArchiveFile);
+                }
+
+            }
+        } catch (Throwable v0) {
+            BundleLock.WriteUnLock(location);
+        }
+
+        return bundleImpl;
+    }
+
 
     private Framework() {
     }
@@ -489,7 +557,7 @@ public final class Framework {
         int startlevel;
         frameworkStartupShutdown = true;
         System.out.println("---------------------------------------------------------");
-        System.out.println("  ACDD OSGi 1.0.0  Pre-Release on " + Build.MODEL + "/" + Build.CPU_ABI + "/"
+        System.out.println("  ACDD OSGI "+ FRAMEWORK_VERSION+"   on " + Build.MODEL + "/" + Build.CPU_ABI + "/"
                 + VERSION.RELEASE +" SDK version "+Build.VERSION.SDK_INT+ " starting ...");
         System.out.println("---------------------------------------------------------");
         long currentTimeMillis = System.currentTimeMillis();
@@ -744,17 +812,23 @@ public final class Framework {
                         return !str.matches("^[0-9]*");
                     }
                 });
-                int i = 0;
-                while (i < listFiles.length) {
-                    if (listFiles[i].isDirectory() && new File(listFiles[i], "meta").exists()) {
-                        try {
-                            System.out.println("RESTORED BUNDLE " + new BundleImpl(listFiles[i]).location);
-                        } catch (Exception e) {
-                            log.error(e.getMessage(), e.getCause());
+                for ( File tmpFile:listFiles){
+                    if (tmpFile.isDirectory() && new File(tmpFile, "meta").exists()) {
+                        for (String location:ACDDConfig.AUTO){
+                            if (location.equals(tmpFile.getName())){
+                                try {
+
+                                    System.out.println("RESTORED BUNDLE " + new BundleImpl(tmpFile).location);
+                                } catch (Exception e) {
+                                    log.error(e.getMessage(), e.getCause());
+                                }
+                                break;
+                            }
                         }
+
                     }
-                    i++;
                 }
+
                 return readInt;
             }
             System.out.println("Profile not found, performing clean start ...");
@@ -936,7 +1010,7 @@ public final class Framework {
     private static void MergeWirteAheads(File storageLocation) {
         try {
             File wal = new File(STORAGE_LOCATION, "wal");
-            String curProcessName = ACDDUtils.getProcessNameByPID(Process.myPid());
+            String curProcessName = RuntimeVariables.currentProcessName;
             log.debug("restoreProfile in process " + curProcessName);
             String packageName = RuntimeVariables.androidApplication.getPackageName();
             if (curProcessName != null && packageName != null && curProcessName.equals(packageName)) {

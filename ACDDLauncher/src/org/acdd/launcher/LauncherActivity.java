@@ -27,38 +27,22 @@
 package org.acdd.launcher;
 
 import android.app.Activity;
-import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
 import android.os.Bundle;
-
-import org.acdd.framework.InternalConstant;
+import android.support.v4.app.FragmentActivity;
 
 import org.acdd.launcher.welcome.WelcomeFragment;
-import org.acdd.runtime.Globals;
 
 
-public class LauncherActivity extends Activity {
+public class LauncherActivity extends FragmentActivity {
 	WelcomeFragment mFragment;
-    public static boolean isAtlasDexopted() {
-        PackageInfo packageInfo = null;
-        try {
-            packageInfo = Globals.getApplication().getPackageManager().getPackageInfo(Globals.getApplication().getPackageName(), 0);
-        } catch (Throwable e) {
-           e.printStackTrace();
-        }
-        SharedPreferences sharedPreferences = Globals.getApplication().getSharedPreferences(InternalConstant.ACDD_CONFIGURE, 0);
-        if (packageInfo == null || !"dexopt".equals(sharedPreferences.getString(packageInfo.versionName, ""))) {
-            return false;
-        }
-        return false;
-    }
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 //		setContentView(R.layout.activity_loader_tesst);
         setContentView(R.layout.welcome_frame);
         this.mFragment = new WelcomeFragment();
-        getFragmentManager().beginTransaction().add(R.id.frame, this.mFragment).commitAllowingStateLoss();
+        getSupportFragmentManager().beginTransaction().add(R.id.frame, this.mFragment).commitAllowingStateLoss();
 	}
 	
 
@@ -68,7 +52,7 @@ public class LauncherActivity extends Activity {
 	protected void onResume() {
 		// TODO Auto-generated method stub
 		super.onResume();
-		//libcom_taobao_scan.so
+
 
 	}
 	/**

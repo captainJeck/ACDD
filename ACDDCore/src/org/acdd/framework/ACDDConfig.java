@@ -38,9 +38,13 @@ public class ACDDConfig {
 
     /**plugin preload  dir ******/
     public static String PRELOAD_DIR = "armeabi";
+    public  static  String BUNDLE_PREFIX_COM="lib/"+ ACDDConfig.PRELOAD_DIR+"/libcom_";
+    public  static  String BUNDLE_PREFIX_CN="lib/"+ ACDDConfig.PRELOAD_DIR+"/libcn_";
     /**enable opt dex on ART ****/
     public static boolean  optART=true;
     /******enable sub process******/
     public static boolean  subProcessEnable=false;
+    public static boolean stubModeEnable = false;//2.3暂不支持STUB
+
 
 }

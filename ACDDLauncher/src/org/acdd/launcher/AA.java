@@ -1,6 +1,6 @@
 /*
  * ACDD Project
- * file BootApp.java  is  part of ACCD
+ * file AA.java  is  part of ACCD
  * The MIT License (MIT)  Copyright (c) 2015 Bunny Blue,achellies.
  *
  *
@@ -24,43 +24,14 @@
  *
  *
  */
+
 package org.acdd.launcher;
 
-import android.content.Context;
+import java.io.Serializable;
 
-import org.acdd.android.compat.ACDDApp;
-import org.acdd.framework.ACDDConfig;
-import org.acdd.framework.InternalConstant;
-
-public class BootApp extends ACDDApp {
-	static{
-		ACDDConfig.DELAY = new String[]{"com.acdd.android.game2","com.acdd.testapp1","com.acdd.testapp2"};
-		ACDDConfig.AUTO = new String[]{"com.umeng.fb.example","com.acdd.homelauncher","cn.acdd.qrcode","com.acdd.universalimageloader.sample"};
-		ACDDConfig.STORE = new String[]{"com.acdd.android.appcenter"};
-		ACDDConfig.stubModeEnable=true;
-	}
-
-	
-
-	static final String TAG = "TestApp";
-
-
-    @Override
-    public void attachedBaseContext(Context base) {
-
-        //MultiDex.install(base);
-    }
-
-    @Override
-	public void onCreate() {
-
-		super.onCreate();
-	
-		InternalConstant.BundleNotFoundActivity=BundleNotFoundActivity.class;
-	}
-
-
-
-
-
+/**
+ * Created by BunnyBlue on 11/20/15.
+ */
+public class AA implements Serializable {
+    public  long st=System.currentTimeMillis();
 }

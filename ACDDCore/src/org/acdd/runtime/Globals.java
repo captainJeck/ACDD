@@ -78,21 +78,12 @@ public class Globals {
         }
     }
 
-    public static String getVersionName() {
-        try {
-            return getApplication().getPackageManager().getPackageInfo(getApplication().getPackageName(), 0).versionName;
-        } catch (NameNotFoundException e) {
-            e.printStackTrace();
-            return "null";
-        }
-    }
-
     public static String getInstalledVersionName() {
         return sInstalledVersionName;
     }
 
     public static void initInstalledVersionName(String InstalledVersionName) {
-        if (sInstalledVersionName != null)
+        if (sInstalledVersionName == null)
             sInstalledVersionName = InstalledVersionName;
 
     }

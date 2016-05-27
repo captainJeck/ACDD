@@ -27,7 +27,6 @@
 package org.acdd.runtime;
 
 import org.acdd.framework.Framework;
-
 import org.osgi.framework.Bundle;
 
 import java.util.List;
@@ -37,9 +36,34 @@ import java.util.List;
  * override  findClass
  ***/
 public class DelegateClassLoader extends ClassLoader {
+    // add pathList field to make ACDD compatible with 'com.android.support:multidex'
+    //private Object pathList;
     public DelegateClassLoader(ClassLoader classLoader) {
         super(classLoader);
+//        try {
+//            Class classBaseDexClassLoader = Class.forName("dalvik.system.BaseDexClassLoader");
+//            if (classBaseDexClassLoader.isInstance(classLoader)) {
+//                Field fieldPathList = classBaseDexClassLoader.getDeclaredField("pathList");
+//                fieldPathList.setAccessible(true);
+//                Object object = fieldPathList.get(classLoader);
+//                this.pathList = object;
+//            }
+//
+//        } catch (ClassNotFoundException e) {
+//            e.printStackTrace();
+//
+//        } catch (NoSuchFieldException e) {
+//            e.printStackTrace();
+//
+//        } catch (IllegalAccessException e) {
+//            e.printStackTrace();
+//
+//        } catch (IllegalArgumentException e) {
+//            e.printStackTrace();
+//        }
+
     }
+
 
     @Override
     public Class<?> loadClass(String className) throws ClassNotFoundException {

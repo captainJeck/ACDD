@@ -32,7 +32,6 @@ import org.acdd.framework.Framework;
 import org.acdd.log.Logger;
 import org.acdd.log.LoggerFactory;
 import org.acdd.runtime.RuntimeVariables;
-import org.acdd.util.ACDDUtils;
 import org.acdd.util.StringUtils;
 
 import java.io.File;
@@ -61,7 +60,7 @@ public class BundleArchive implements Archive {
     public BundleArchive(String location, File bundleDir) throws IOException {
         this.revisions = new TreeMap<Long, BundleArchiveRevision>();
         File[] listFiles = bundleDir.listFiles();
-        String currentProcessName = ACDDUtils.getProcessNameByPID(android.os.Process.myPid());
+        String currentProcessName = RuntimeVariables.currentProcessName;
         if (listFiles != null) {
             for (File file : listFiles) {
                 if (file.getName().startsWith(REVISION_DIRECTORY)) {
@@ -103,19 +102,26 @@ public class BundleArchive implements Archive {
         BundleArchiveRevision bundleArchiveRevision = new BundleArchiveRevision(location, longValue, new File(bundleDir, "version." + String.valueOf(longValue)));
         this.revisions.put(Long.valueOf(longValue), bundleArchiveRevision);
         this.currentRevision = bundleArchiveRevision;
-        //remove  old version
-        for (int i = 1; i < longValue; i++) {
-            File mBundleDir = new File(bundleDir, "version." + String.valueOf(i));
-            if (mBundleDir.isDirectory()) {
-                File[] listFilesSub = mBundleDir.listFiles();
-                for (File file : listFilesSub) {
-                    file.delete();
-                }
-
-                mBundleDir.delete();
+        if (!RuntimeVariables.inSubProcess){
+            try {
+                purge();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            log.info("remove old  bundle@" + mBundleDir.getAbsolutePath() + " last version : " + currentRevision);
-
+            //remove  old version
+//            for (int i = 2; i < longValue; i++) {
+//                File mBundleDir = new File(bundleDir, "version." + String.valueOf(i));
+//                if (mBundleDir.isDirectory()) {
+//                    File[] listFilesSub = mBundleDir.listFiles();
+//                    for (File file : listFilesSub) {
+//                        file.delete();
+//                    }
+//
+//                    mBundleDir.delete();
+//                }
+//                log.info("remove old  bundle@" + mBundleDir.getAbsolutePath() + " last version : " + currentRevision);
+//
+//            }
         }
         //remove old version
     }
@@ -253,6 +259,11 @@ public class BundleArchive implements Archive {
 
     @Override
     public void close() {
+    }
+    @Override
+    public boolean isUpdated() {
+        return this.currentRevision.isUpdated();
+
     }
 
     /**

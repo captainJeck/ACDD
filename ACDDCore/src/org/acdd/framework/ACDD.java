@@ -28,7 +28,11 @@ package org.acdd.framework;
 
 import android.app.Application;
 import android.content.ComponentName;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.content.res.Resources;
 
 import org.acdd.hack.ACDDHacks;
@@ -42,11 +46,12 @@ import org.acdd.runtime.ClassLoadFromBundle;
 import org.acdd.runtime.ClassNotFoundInterceptorCallback;
 import org.acdd.runtime.DelegateClassLoader;
 import org.acdd.runtime.DelegateComponent;
+import org.acdd.runtime.DelegateResources;
 import org.acdd.runtime.FrameworkLifecycleHandler;
 import org.acdd.runtime.InstrumentationHook;
 import org.acdd.runtime.PackageLite;
 import org.acdd.runtime.RuntimeVariables;
-import org.acdd.util.ACDDUtils;
+import org.acdd.runtime.stub.BundlePackageManager;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleException;
 import org.osgi.framework.BundleListener;
@@ -58,6 +63,15 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
 
+/**
+ * ACDD  framework controller
+ * app upgrade {@link ACDD#updateBundle(String , InputStream ) updateBundle} or
+ * {@link ACDD#updateBundle(String ,File  ) updateBundle},
+ * ,app install see {@link ACDD#installBundle(String location, InputStream inputStream)}
+ * or {@link #installBundle(String , File ) installBundle},
+ * app uninstall {@link #uninstallBundle(String)},
+ * bundle  is plugin mapping,location is bundle's package name.
+ **/
 public class ACDD {
     protected static ACDD instance;
     static final Logger log;
@@ -82,6 +96,10 @@ public class ACDD {
         return instance;
     }
 
+    /***
+     * acdd framework  init injection ,include ClassLoader,Resource,android Instrumentation
+     * ,more info see  {@link ACDDHacks ACDDHacks} and {@link AndroidHack AndroidHack}
+     *****/
     public void init(Application application)
             throws Exception {
         String packageName = application.getPackageName();
@@ -101,13 +119,13 @@ public class ACDD {
         this.frameworkLifecycleHandler = new FrameworkLifecycleHandler();
         Framework.frameworkListeners.add(this.frameworkLifecycleHandler);
         AndroidHack.hackH();
-        RuntimeVariables.inSubProcess=!application.getPackageName().equals(ACDDUtils.getProcessNameByPID(android.os.Process.myPid()));
+        // RuntimeVariables.inSubProcess = !application.getPackageName().equals(RuntimeVariables.);
         // Framework.initialize(properties);
     }
 
     /**
-     *@since 1.0.0
-     * **/
+     * @since 1.0.0
+     **/
     private Resources initResources(Application application) throws Exception {
         Resources resources = application.getResources();
         if (resources != null) {
@@ -117,12 +135,23 @@ public class ACDD {
         return application.getPackageManager().getResourcesForApplication(application.getApplicationInfo());
     }
 
-    public void injectApplication(Application application, String packageName)
+    /***
+     * inject ActivityThread for acdd
+     *
+     * @param application app context
+     * @param packageName app packagename
+     **/
+    private void injectApplication(Application application, String packageName)
             throws Exception {
         ACDDHacks.defineAndVerify();
         AndroidHack.injectApplication(packageName, application);
     }
 
+    /***
+     * acdd startup when this method called
+     *
+     * @param properties framework properties
+     **/
     public void startup(Properties properties) throws BundleException {
         Framework.startup(properties);
     }
@@ -135,10 +164,22 @@ public class ACDD {
         Framework.shutdown(false);
     }
 
+    /****
+     * get specific   bundle impl,if bundle not installed,you will got null
+     *
+     * @param pkgName bundle package name
+     * @return {@link BundleImpl BundleImpl}
+     ***/
     public Bundle getBundle(String pkgName) {
         return Framework.getBundle(pkgName);
     }
 
+    /****
+     * get specific   bundle impl on demand,if bundle not install,ACDD will try install budnle and dependency
+     *
+     * @param pkgName bundle package name
+     * @return {@link BundleImpl BundleImpl}
+     ***/
     public Bundle getBundleOnDemand(String pkgName) {
         if (pkgName == null || pkgName.length() == 0) {
             return null;
@@ -149,26 +190,81 @@ public class ACDD {
         return Framework.getBundle(pkgName);
     }
 
+    /*****
+     * install new bundle ,if succeed,you will got {@link BundleImpl BundleImpl}
+     *
+     * @param location    notice!,this param is your target bundle package name,must be right
+     * @param inputStream bundle  archive's inputstream
+     * @return {@link BundleImpl BundleImpl}
+     **/
     public Bundle installBundle(String location, InputStream inputStream)
             throws BundleException {
         return Framework.installNewBundle(location, inputStream);
     }
 
+    /*****
+     * install new bundle ,if succeed,you will got {@link BundleImpl BundleImpl}
+     *
+     * @param location notice!,this param is your target bundle package name,must be right
+     * @param apkFile  bundle  archive file
+     * @return {@link BundleImpl BundleImpl}
+     **/
     public Bundle installBundle(String location, File apkFile) throws BundleException {
         return Framework.installNewBundle(location, apkFile);
     }
 
-    public void updateBundle(String pkgName, InputStream inputStream)
+    /**
+     * this method just use for  ACDD internal,use for  pre-install  bundle
+     * ,just cache file,and opt,speed up  for  bundle uninstalled
+     *
+     * @param location    notice!,this param is your target bundle package name,must be right
+     * @param inputStream bundle  archive's inputstream
+     * @return {@link BundleImpl BundleImpl}
+     ***/
+    public Bundle preInstallBundle(String location, InputStream inputStream)
             throws BundleException {
-        Bundle bundle = Framework.getBundle(pkgName);
+        return Framework.preInstallNewBundle(location, inputStream);
+    }
+
+    /**
+     * this method just use for  ACDD internal,use for  pre-install  bundle
+     * ,just cache file,and opt,speed up  for  bundle uninstalled
+     *
+     * @param location bundle package name
+     * @param apkFile
+     * @return {@link BundleImpl BundleImpl}
+     * @throws BundleException
+     */
+
+    public Bundle preInstallBundle(String location, File apkFile) throws BundleException {
+        return Framework.preInstallNewBundle(location, apkFile);
+    }
+
+    /**
+     * update bundle,when app  restart,update will change
+     *
+     * @param location    bundle's package name
+     * @param inputStream bundle archive stream
+     * @throws BundleException
+     */
+    public void updateBundle(String location, InputStream inputStream)
+            throws BundleException {
+        Bundle bundle = Framework.getBundle(location);
         if (bundle != null) {
             bundle.update(inputStream);
             return;
         }
-        throw new BundleException("Could not update bundle " + pkgName
+        throw new BundleException("Could not update bundle " + location
                 + ", because could not find it");
     }
 
+    /**
+     * update bundle,when app  restart,update will change
+     *
+     * @param pkgName     bundle's package name
+     * @param mBundleFile bundle archive file
+     * @throws BundleException
+     */
     public void updateBundle(String pkgName, File mBundleFile) throws BundleException {
         if (!mBundleFile.exists()) {
             throw new BundleException("file not  found" + mBundleFile.getAbsolutePath());
@@ -182,16 +278,57 @@ public class ACDD {
                 + ", because could not find it");
     }
 
+    /**
+     * update bundle  whitout reboot app
+     * Notice:this method is Experience!!,maybe  not stabe,don't use is product better
+     *
+     * @param location    bundle package name
+     * @param mBundleFile bundle  archive file
+     * @throws BundleException if error occurred,will throw BundleException
+     */
+    public void updateBundleForce(String location, File mBundleFile) throws BundleException {
+        if (!mBundleFile.exists()) {
+            throw new BundleException("file not  found" + mBundleFile.getAbsolutePath());
+        }
+        BundleImpl bundle = (BundleImpl) Framework.getBundle(location);
+        if (bundle != null) {
+            bundle.update(mBundleFile);
+            bundle.refresh();
+            try {
+                DelegateResources.newDelegateResources(RuntimeVariables.androidApplication, RuntimeVariables.delegateResources, bundle.getArchive().getArchiveFile().getAbsolutePath());
+            } catch (Exception e) {
+            }
+            return;
+        }
+        throw new BundleException("Could not update bundle " + location
+                + ", because could not find it");
+    }
+
     public boolean restoreBundle(String[] packageNames) {
 
         return Framework.restoreBundle(packageNames);
     }
 
+    @Deprecated
     public void installOrUpdate(String[] packageNames, File[] bundleFiles)
             throws BundleException {
         Framework.installOrUpdate(packageNames, bundleFiles);
     }
 
+    /**
+     * just for use  start uninstall bundle  for  stub mode
+     * @param location
+     */
+    public void checkBundleInstall(String location) {
+        ClassLoadFromBundle.checkBundle(location);
+    }
+
+    /**
+     * uninstall specific bundle
+     *
+     * @param pkgName bundle package name you wanna uninstall
+     * @throws BundleException
+     */
     public void uninstallBundle(String pkgName) throws BundleException {
         Bundle bundle = Framework.getBundle(pkgName);
         if (bundle != null) {
@@ -218,6 +355,10 @@ public class ACDD {
         throw new BundleException("Could not uninstall bundle " + pkgName + ", because could not find it");
     }
 
+    /**
+     * get installed  bundle list
+     * @return all bundle  installed to ACDD
+     */
     public List<Bundle> getBundles() {
         return Framework.getBundles();
     }
@@ -234,20 +375,30 @@ public class ACDD {
         return RuntimeVariables.delegateClassLoader.loadClass(pkgName);
     }
 
-    public ClassLoader getBundleClassLoader(String pkgName) {
-        Bundle bundle = Framework.getBundle(pkgName);
+    /**
+     * get specific BundleClassLoader
+     * @param location  bundle package name
+     * @return ClassLoader if bundle installed,you'll got ClassLoader,or null
+     */
+    public ClassLoader getBundleClassLoader(String location) {
+        Bundle bundle = Framework.getBundle(location);
         if (bundle != null) {
             return ((BundleImpl) bundle).getClassLoader();
         }
         return null;
     }
-
+    @Deprecated
     public PackageLite getBundlePackageLite(String pkgName) {
         return DelegateComponent.getPackage(pkgName);
     }
 
-    public File getBundleFile(String pkgName) {
-        Bundle bundle = Framework.getBundle(pkgName);
+    /**
+     * get specific bundle  archive file
+     * @param location bundle package name
+     * @return bundle archive file or null
+     */
+    public File getBundleFile(String location) {
+        Bundle bundle = Framework.getBundle(location);
         if (bundle != null) {
             return ((BundleImpl) bundle).archive.getArchiveFile();
         }
@@ -324,4 +475,25 @@ public class ACDD {
         Framework.setClassNotFoundCallback(classNotFoundInterceptorCallback);
     }
 
+    //start stub mode
+    public List<ResolveInfo> queryNewIntentActivities(Intent intent, String str, int flags, int userid) {
+
+        return BundlePackageManager.queryIntentActivities(intent, str, flags, userid);
+    }
+
+    public List<ResolveInfo> queryNewIntentServices(Intent intent, String str, int flags, int userid) {
+
+        return BundlePackageManager.queryIntentService(intent, str, flags, userid);
+    }
+
+    public ActivityInfo getNewActivityInfo(ComponentName componentName, int flags) {
+
+        return BundlePackageManager.getNewActivityInfo(componentName, flags);
+    }
+
+    public ServiceInfo getNewServiceInfo(ComponentName componentName, int flags) {
+
+        return BundlePackageManager.getNewServiceInfo(componentName, flags);
+    }
+    //end stub mode
 }

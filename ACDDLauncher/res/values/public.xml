@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
+<!--ref sdk/platforms/android-10/data/res/values/public.xml
   ~ ACDD Project
-  ~ file AndroidManifest.xml  is  part of ACCD
+  ~ file public.xml  is  part of ACCD
   ~ The MIT License (MIT)  Copyright (c) 2015 Bunny Blue,achellies.
   ~
   ~
@@ -26,17 +26,7 @@
   ~
   -->
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.acdd.sdk"
-    android:versionCode="1"
-    android:versionName="1.0" >
-    <uses-sdk
-        android:minSdkVersion="9"
-        android:targetSdkVersion="21" />
+<resources>
+    <public type="drawable" name="host_launcher_web" id="0x7f020000" />
 
-    <application>
-        <activity android:name="org.acdd.runtime.stub.StubActivity" />
-        <receiver android:name="org.acdd.runtime.stub.StubReceiver"/>
-    </application>
-
-</manifest>
+</resources>

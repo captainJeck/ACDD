@@ -92,15 +92,15 @@ public class ClassLoadFromBundle {
     public static synchronized void resolveInternalBundles() {
         synchronized (ClassLoadFromBundle.class) {
             if (sInternalBundles == null || sInternalBundles.size() == 0) {
-                String str = "lib/" + ACDDConfig.PRELOAD_DIR + "/libcom_";
-
+                String libcom = "lib/" + ACDDConfig.PRELOAD_DIR + "/libcom_";
+                String libcn = "lib/" + ACDDConfig.PRELOAD_DIR + "/libcn_";
                 List<String> arrayList = new ArrayList<String>();
                 try {
                     sZipFile = new ZipFile(RuntimeVariables.androidApplication.getApplicationInfo().sourceDir);
                     Enumeration<?> entries = sZipFile.entries();
                     while (entries.hasMoreElements()) {
                         String name = ((ZipEntry) entries.nextElement()).getName();
-                        if (name.startsWith(str) && name.endsWith(".so")) {
+                        if ((name.startsWith(libcom)||name.startsWith(libcn)) && name.endsWith(".so")) {
                             arrayList.add(getPackageNameFromEntryName(name));
                         }
                     }
@@ -192,8 +192,7 @@ public class ClassLoadFromBundle {
                         ACDD.getInstance().installBundle(location, file);
                         return;
                     }
-                    log.error("disk size not enough");
-                    ACDDMonitor.getInstance().trace(Integer.valueOf(-1), location, "", "disk size not enough");
+
                 } catch (Throwable e) {
                     log.error("failed to install bundle " + location, e);
                     ACDDMonitor.getInstance().trace(Integer.valueOf(-1), location, "",
@@ -240,6 +239,23 @@ public class ClassLoadFromBundle {
             if (TextUtils.isEmpty(location)) {
                 Log.e(TAG, "Failed to find the bundle in BundleInfoList for component " + componet);
                 insertToReasonList(componet, "not found in BundleInfoList!");
+            }
+            if (sInternalBundles == null || sInternalBundles.contains(location)) {
+                checkInstallBundleAndDependency(location);
+                return;
+            }
+        }
+    }
+
+    public static void checkBundle(String location) {
+        synchronized (location) {
+            if (sInternalBundles == null) {
+                resolveInternalBundles();
+            }
+            BundleInfoList.BundleInfo locationw = BundleInfoList.getInstance().getBundleInfo(location);
+            if (locationw != null) {
+                Log.e(TAG, "Failed to find the bundle in BundleInfoList for bundle " + location);
+                insertToReasonList(location, "not found in BundleInfoList!");
             }
             if (sInternalBundles == null || sInternalBundles.contains(location)) {
                 checkInstallBundleAndDependency(location);

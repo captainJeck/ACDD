@@ -92,7 +92,7 @@ public class BundlesInstaller {
 			ZipFile zipFile = null;
 			try {
 				zipFile = new ZipFile(this.application.getApplicationInfo().sourceDir);
-				List<String> bundleList = fetchBundleFileList(zipFile, "lib/"+ ACDDConfig.PRELOAD_DIR+"/libcom_", ".so");
+				List<String> bundleList = fetchBundleFileList(zipFile,  ".so");
 				if (bundleList != null && bundleList.size() > 0 && getAvailableSize() < ((long) (((bundleList.size() * 2) * 1024) * 1024))) {
 					new Handler(Looper.getMainLooper()).post(new Runnable() {
 						public void run() {
@@ -138,13 +138,13 @@ public class BundlesInstaller {
 		}
 	}
 
-	private List<String> fetchBundleFileList(ZipFile zipFile, String prefix, String suffix) {
+	private List<String> fetchBundleFileList(ZipFile zipFile,  String suffix) {
 		List<String> arrayList = new ArrayList<String>();
 		try {
 			Enumeration<?> entries = zipFile.entries();
 			while (entries.hasMoreElements()) {
 				String name = ((ZipEntry) entries.nextElement()).getName();
-				if (name.startsWith(prefix) && name.endsWith(suffix)) {
+				if ((name.startsWith(ACDDConfig.BUNDLE_PREFIX_COM)||name.startsWith(ACDDConfig.BUNDLE_PREFIX_CN)) && name.endsWith(suffix)) {
 					arrayList.add(name);
 				}
 			}
@@ -243,6 +243,28 @@ public class BundlesInstaller {
 		} catch (Throwable e) {
 			Log.e("BundlesInstaller", "Could not install bundle.", e);
 			return false;
+		}
+	}
+	public Bundle preInstallBundle(ZipFile zipFile, String location, Application application) {
+
+
+		this.bundleDebug.installExternalBundle(location);
+		String fileNameFromEntryName = Utils.getFileNameFromPackage(location);
+
+		File archvieFile = new File(new File(application.getFilesDir().getParentFile(), "lib"), fileNameFromEntryName);
+		if (ACDD.getInstance().getBundle(location) != null) {
+			return null;
+		}
+		try {
+			if (archvieFile.exists()) {
+			return 	ACDD.getInstance().preInstallBundle(location, archvieFile);
+			} else {
+				return  ACDD.getInstance().preInstallBundle(location, zipFile.getInputStream(zipFile.getEntry(Utils.getEntryNameFromPackage(location))));
+			}
+			//return true;
+		} catch (Throwable e) {
+			Log.e("BundlesInstaller", "Could not install bundle.", e);
+			return null;
 		}
 	}
 }

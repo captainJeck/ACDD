@@ -37,12 +37,15 @@ import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.text.TextUtils;
 
+import org.acdd.framework.ACDD;
+import org.acdd.framework.ACDDConfig;
 import org.acdd.framework.BundleImpl;
 import org.acdd.framework.Framework;
 import org.acdd.log.Logger;
 import org.acdd.log.LoggerFactory;
+import org.acdd.runtime.stub.BundlePackageManager;
 import org.acdd.util.StringUtils;
-
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleException;
 
 /***
@@ -90,6 +93,17 @@ public class ContextImplHook extends ContextWrapper {
 
     @Override
     public void startActivity(Intent intent) {
+        if (ACDDConfig.stubModeEnable) {
+          //  BundlePackageManager.modifyStubActivity(intent);
+            if (BundlePackageManager.isNeedCheck(intent)) {
+                for (Bundle bundle : ACDD.getInstance().getBundles()) {
+                    if (((BundleImpl) bundle).isUpdated() && ((BundleImpl) bundle).getPackageManager().wrapperActivityIntentIfNeed(intent) != null) {
+                        break;
+                    }
+                }
+            }
+        }
+
         String packageName;
         String mComponentName = null;
         if (intent.getComponent() != null) {
@@ -223,4 +237,20 @@ public class ContextImplHook extends ContextWrapper {
             return null;
         }
     }
+    @Override
+    public void sendBroadcast(Intent intent) {
+        if (ACDDConfig.stubModeEnable) {
+
+            if (BundlePackageManager.isNeedCheckReceiver(intent)) {
+                for (Bundle bundle : ACDD.getInstance().getBundles()) {
+                    if (((BundleImpl) bundle).isUpdated() && ((BundleImpl) bundle).getPackageManager().wrapperReceiverIntentIfNeed(intent) != null) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        super.sendBroadcast(intent);
+    }
+
 }
